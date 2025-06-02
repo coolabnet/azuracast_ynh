@@ -1,0 +1,48 @@
+[Unit]
+Description=AzuraCast web radio management suite
+Documentation=https://www.azuracast.com/docs/
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=forking
+RemainAfterExit=yes
+
+User=__APP__
+Group=__APP__
+WorkingDirectory=__INSTALL_DIR__
+
+# Start AzuraCast
+ExecStart=/bin/bash -c 'cd __INSTALL_DIR__ && ./docker.sh start'
+
+# Stop AzuraCast
+ExecStop=/bin/bash -c 'cd __INSTALL_DIR__ && ./docker.sh stop'
+
+# Restart AzuraCast
+ExecReload=/bin/bash -c 'cd __INSTALL_DIR__ && ./docker.sh restart'
+
+# Always restart on failure
+Restart=on-failure
+RestartSec=10
+
+# Set environment variables
+Environment=COMPOSE_HTTP_TIMEOUT=300
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=__INSTALL_DIR__ __DATA_DIR__ /var/lib/docker
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# Logging
+StandardOutput=append:/var/log/__APP__/__APP__.log
+StandardError=append:/var/log/__APP__/__APP__.log
+SyslogIdentifier=__APP__
+
+[Install]
+WantedBy=multi-user.target

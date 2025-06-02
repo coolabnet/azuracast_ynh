@@ -1,0 +1,80 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+# Retrieve app settings
+app=$YNH_APP_ID
+domain=$(ynh_app_setting_get --app=$app --key=domain)
+path=$(ynh_app_setting_get --app=$app --key=path)
+install_dir=$(ynh_app_setting_get --app=$app --key=install_dir)
+data_dir=$(ynh_app_setting_get --app=$app --key=data_dir)
+admin=$(ynh_app_setting_get --app=$app --key=admin)
+station_ports=$(ynh_app_setting_get --app=$app --key=station_ports)
+
+ynh_script_progression --message="Checking version..." --weight=1
+
+upgrade_type=$(ynh_check_app_version_changed)
+
+ynh_script_progression --message="Backing up the app before upgrading (may take a while)..." --weight=10
+
+# Backup the current version of the app
+ynh_backup_before_upgrade
+ynh_clean_setup () {
+    ynh_clean_check_starting
+    # Restore it if the upgrade fails
+    ynh_restore_upgradebackup
+}
+# Exit if an error occurs during the execution of the script
+ynh_abort_if_errors
+
+ynh_script_progression --message="Stopping a systemd service..." --weight=1
+
+ynh_systemd_action --service_name=$app --action="stop" --log_path="/var/log/$app/$app.log"
+
+ynh_script_progression --message="Updating Docker and Docker Compose..." --weight=5
+
+# Update Docker Compose if needed
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+    ynh_exec_warn_less curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+fi
+
+ynh_script_progression --message="Upgrading AzuraCast..." --weight=20
+
+cd "$install_dir"
+
+# Create backup before upgrade
+ynh_exec_as $app ./docker.sh backup
+
+# Update AzuraCast
+ynh_exec_as $app ./docker.sh update-self
+ynh_exec_as $app ./docker.sh update
+
+ynh_script_progression --message="Updating nginx web server configuration..." --weight=1
+
+# Update nginx configuration
+ynh_add_nginx_config
+
+# Update systemd configuration
+ynh_add_systemd_config
+
+ynh_script_progression --message="Updating logrotate configuration..." --weight=1
+
+# Update logrotate configuration
+ynh_use_logrotate --non-append
+
+ynh_script_progression --message="Integrating service in YunoHost..." --weight=1
+
+yunohost service add $app --description="AzuraCast web radio management" --log="/var/log/$app/$app.log"
+
+ynh_script_progression --message="Starting a systemd service..." --weight=1
+
+ynh_systemd_action --service_name=$app --action="start" --log_path="/var/log/$app/$app.log"
+
+ynh_script_progression --message="Reloading NGINX web server..." --weight=1
+
+ynh_systemd_action --service_name=nginx --action=reload
+
+ynh_script_progression --message="Upgrade of $app completed" --last

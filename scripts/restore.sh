@@ -1,0 +1,91 @@
+#!/bin/bash
+
+source ../settings/scripts/_common.sh
+source /usr/share/yunohost/helpers
+
+# Retrieve app settings
+app=$YNH_APP_ID
+domain=$(ynh_app_setting_get --app=$app --key=domain)
+path=$(ynh_app_setting_get --app=$app --key=path)
+install_dir=$(ynh_app_setting_get --app=$app --key=install_dir)
+data_dir=$(ynh_app_setting_get --app=$app --key=data_dir)
+
+ynh_script_progression --message="Validating restoration parameters..." --weight=1
+
+test ! -d $install_dir \
+    || ynh_die --message="There is already a directory: $install_dir "
+
+ynh_script_progression --message="Recreating the dedicated system user..." --weight=1
+
+# Recreate the dedicated user (if not existing)
+ynh_system_user_create --username=$app --home_dir="$install_dir"
+
+ynh_script_progression --message="Restoring the app main directory..." --weight=1
+
+ynh_restore_file --origin_path="$install_dir"
+
+# Set permissions
+chown -R $app:$app "$install_dir"
+
+ynh_script_progression --message="Restoring the data directory..." --weight=1
+
+ynh_restore_file --origin_path="$data_dir"
+
+# Set permissions on data directory
+chown -R $app:$app "$data_dir"
+
+ynh_script_progression --message="Restoring system configurations..." --weight=5
+
+ynh_restore_file --origin_path="/etc/nginx/conf.d/$domain.d/$app.conf"
+
+ynh_restore_file --origin_path="/etc/systemd/system/$app.service"
+systemctl enable $app.service --quiet
+
+ynh_restore_file --origin_path="/etc/logrotate.d/$app"
+
+ynh_restore_file --origin_path="/etc/fail2ban/jail.d/$app.conf"
+ynh_restore_file --origin_path="/etc/fail2ban/filter.d/$app.conf"
+ynh_systemd_action --service_name=fail2ban --action=restart
+
+ynh_script_progression --message="Checking Docker installation..." --weight=5
+
+# Ensure Docker is installed
+if ! command -v docker &> /dev/null; then
+    ynh_exec_warn_less curl -fsSL https://get.docker.com | sh
+fi
+
+if ! command -v docker-compose &> /dev/null; then
+    ynh_exec_warn_less curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+fi
+
+ynh_script_progression --message="Restoring AzuraCast Docker containers..." --weight=15
+
+cd "$install_dir"
+
+# Pull latest images and start containers
+ynh_exec_as $app ./docker.sh update
+ynh_exec_as $app ./docker.sh start
+
+# Restore AzuraCast backup if available
+if [ -d "$install_dir/backups" ] && [ "$(ls -A $install_dir/backups)" ]; then
+    latest_backup=$(ls -t $install_dir/backups/*.tar.gz 2>/dev/null | head -n1)
+    if [ ! -z "$latest_backup" ]; then
+        ynh_script_progression --message="Restoring AzuraCast data from backup..." --weight=10
+        ynh_exec_as $app ./docker.sh restore "$latest_backup"
+    fi
+fi
+
+ynh_script_progression --message="Integrating service in YunoHost..." --weight=1
+
+yunohost service add $app --description="AzuraCast web radio management" --log="/var/log/$app/$app.log"
+
+ynh_script_progression --message="Starting a systemd service..." --weight=1
+
+ynh_systemd_action --service_name=$app --action="start" --log_path="/var/log/$app/$app.log"
+
+ynh_script_progression --message="Reloading NGINX web server..." --weight=1
+
+ynh_systemd_action --service_name=nginx --action=reload
+
+ynh_script_progression --message="Restoration completed for $app" --last

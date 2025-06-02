@@ -1,0 +1,177 @@
+#
+# AzuraCast Docker Compose Configuration for YunoHost
+# Modified for YunoHost integration
+#
+
+name: azuracast
+
+services:
+  web:
+    container_name: azuracast_web
+    image: "ghcr.io/azuracast/azuracast:${AZURACAST_VERSION:-latest}"
+    labels:
+      - "com.centurylinklabs.watchtower.scope=azuracast"
+
+    # Modified ports for YunoHost integration
+    ports:
+      # Web interface - proxied through nginx, only bind to localhost
+      - '127.0.0.1:__PORT__:80'
+
+      # SFTP port for file uploads
+      - '${AZURACAST_SFTP_PORT:-2022}:2022'
+
+      # Radio streaming ports (8000-8050 by default)
+      - '8000:8000'
+      - '8005:8005'
+      - '8006:8006'
+      - '8010:8010'
+      - '8015:8015'
+      - '8016:8016'
+      - '8020:8020'
+      - '8025:8025'
+      - '8026:8026'
+      - '8030:8030'
+      - '8035:8035'
+      - '8036:8036'
+      - '8040:8040'
+      - '8045:8045'
+      - '8046:8046'
+      - '8050:8050'
+
+    env_file:
+      - azuracast.env
+      - .env
+
+    volumes:
+      # Use YunoHost data directory structure
+      - station_data:__DATA_DIR__/stations
+      - backups:__DATA_DIR__/backups
+      - db_data:__DATA_DIR__/db
+      - www_uploads:__DATA_DIR__/uploads
+      - shoutcast2_install:__DATA_DIR__/shoutcast2
+      - stereo_tool_install:__DATA_DIR__/stereo_tool
+      - rsas_install:__DATA_DIR__/rsas
+      - geolite_install:__DATA_DIR__/geoip
+      - sftpgo_data:__DATA_DIR__/sftpgo
+      - acme:__DATA_DIR__/acme
+
+    restart: unless-stopped
+
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network configuration
+    networks:
+      - azuracast_network
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # AzuraCast updater service
+  updater:
+    container_name: azuracast_updater
+    image: ghcr.io/azuracast/updater:latest
+    restart: unless-stopped
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+    networks:
+      - azuracast_network
+
+# Named volumes for persistent data
+volumes:
+  db_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/db
+
+  acme:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/acme
+
+  shoutcast2_install:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/shoutcast2
+
+  stereo_tool_install:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/stereo_tool
+
+  rsas_install:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/rsas
+
+  geolite_install:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/geoip
+
+  sftpgo_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/sftpgo
+
+  station_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/stations
+
+  www_uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/uploads
+
+  backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: __DATA_DIR__/backups
+
+# Network for AzuraCast services
+networks:
+  azuracast_network:
+    driver: bridge
+    name: azuracast_network

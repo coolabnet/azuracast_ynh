@@ -1,0 +1,137 @@
+#!/bin/bash
+
+#=================================================
+# COMMON VARIABLES
+#=================================================
+
+# AzuraCast version
+azuracast_version="latest"
+
+# Default ports for AzuraCast services
+azuracast_default_ports="8000-8050"
+
+#=================================================
+# PERSONAL HELPERS
+#=================================================
+
+# Check if Docker is installed and running
+is_docker_installed() {
+    if command -v docker &> /dev/null && systemctl is-active --quiet docker; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Check if Docker Compose is installed
+is_docker_compose_installed() {
+    if command -v docker-compose &> /dev/null; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Install Docker if not present
+install_docker() {
+    if ! is_docker_installed; then
+        ynh_script_progression --message="Installing Docker..." --weight=10
+        ynh_exec_warn_less curl -fsSL https://get.docker.com | sh
+        systemctl enable docker
+        systemctl start docker
+        usermod -aG docker $app
+    fi
+}
+
+# Install Docker Compose if not present
+install_docker_compose() {
+    if ! is_docker_compose_installed; then
+        ynh_script_progression --message="Installing Docker Compose..." --weight=5
+        COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+        ynh_exec_warn_less curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+    fi
+}
+
+# Check if AzuraCast is running
+is_azuracast_running() {
+    cd "$install_dir"
+    if [ -f "docker-compose.yml" ]; then
+        running_containers=$(ynh_exec_as $app docker-compose ps -q)
+        if [ ! -z "$running_containers" ]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Wait for AzuraCast to be ready
+wait_for_azuracast() {
+    local max_attempts=60
+    local attempt=1
+
+    ynh_script_progression --message="Waiting for AzuraCast to be ready..." --weight=10
+
+    while [ $attempt -le $max_attempts ]; do
+        if ynh_exec_as $app curl -f http://localhost:$port >/dev/null 2>&1; then
+            ynh_script_progression --message="AzuraCast is ready!" --weight=1
+            return 0
+        fi
+
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+
+    ynh_die --message="AzuraCast failed to start within expected time"
+}
+
+# Setup AzuraCast environment files
+setup_azuracast_environment() {
+    cd "$install_dir"
+
+    # Create .env file
+    cat > .env <<EOF
+# YunoHost AzuraCast Configuration
+AZURACAST_VERSION=$azuracast_version
+AZURACAST_HTTP_PORT=$port
+AZURACAST_HTTPS_PORT=443
+AZURACAST_SFTP_PORT=2022
+NGINX_TIMEOUT=1800
+LETSENCRYPT_HOST=$domain
+LETSENCRYPT_EMAIL=$(ynh_user_get_info --username=$admin --key=mail)
+EOF
+
+    # Create azuracast.env file
+    cat > azuracast.env <<EOF
+# Application Environment
+APPLICATION_ENV=production
+LOG_LEVEL=info
+
+# Database Configuration
+MYSQL_HOST=mariadb
+MYSQL_PORT=3306
+MYSQL_USER=azuracast
+MYSQL_PASSWORD=$(ynh_string_random --length=32)
+MYSQL_DATABASE=azuracast
+MYSQL_ROOT_PASSWORD=$(ynh_string_random --length=32)
+
+# Redis Configuration
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# Additional Configuration
+ENABLE_REDIS=true
+COMPOSER_PLUGIN_MODE=false
+ADDITIONAL_MEDIA_SYNC_WORKER_COUNT=0
+EOF
+
+    chown $app:$app .env azuracast.env
+}
+
+# Get the next available port for radio stations
+get_station_port_range() {
+    local station_count=$1
+    local start_port=8000
+    local end_port=$((start_port + station_count - 1))
+    echo "$start_port:$end_port"
+}

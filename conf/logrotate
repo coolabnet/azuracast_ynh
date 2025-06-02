@@ -1,0 +1,25 @@
+# Logrotate configuration for AzuraCast
+
+__INSTALL_DIR__/docker-logs/*.log {
+    weekly
+    missingok
+    rotate 12
+    compress
+    delaycompress
+    notifempty
+    create 644 __APP__ __APP__
+}
+
+/var/log/__APP__/__APP__.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 __APP__ __APP__
+    postrotate
+        # Signal systemd to reopen log files
+        /bin/systemctl reload __APP__ > /dev/null 2>&1 || true
+    endscript
+}

@@ -1,0 +1,62 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+# Retrieve arguments
+old_domain=$YNH_APP_OLD_DOMAIN
+old_path=$YNH_APP_OLD_PATH
+new_domain=$YNH_APP_NEW_DOMAIN
+new_path=$YNH_APP_NEW_PATH
+
+app=$YNH_APP_ID
+
+# Retrieve app settings
+install_dir=$(ynh_app_setting_get --app=$app --key=install_dir)
+
+ynh_script_progression --message="Stopping a systemd service..." --weight=1
+
+ynh_systemd_action --service_name=$app --action="stop" --log_path="/var/log/$app/$app.log"
+
+ynh_script_progression --message="Updating configuration..." --weight=1
+
+# Update domain in settings
+ynh_app_setting_set --app=$app --key=domain --value=$new_domain
+ynh_app_setting_set --app=$app --key=path --value=$new_path
+
+# Update .env file with new domain
+cd "$install_dir"
+if [ -f ".env" ]; then
+    sed -i "s|LETSENCRYPT_HOST=.*|LETSENCRYPT_HOST=$new_domain|g" .env
+fi
+
+ynh_script_progression --message="Moving nginx configuration..." --weight=1
+
+# Change the domain for nginx
+if [ $old_domain != $new_domain ]
+then
+    # Delete file checksum for the old conf file location
+    ynh_delete_file_checksum --file="/etc/nginx/conf.d/$old_domain.d/$app.conf"
+    mv "/etc/nginx/conf.d/$old_domain.d/$app.conf" "/etc/nginx/conf.d/$new_domain.d/$app.conf"
+    # Store file checksum for the new config file location
+    ynh_store_file_checksum --file="/etc/nginx/conf.d/$new_domain.d/$app.conf"
+fi
+
+# Update nginx configuration
+ynh_add_nginx_config
+
+ynh_script_progression --message="Restarting AzuraCast..." --weight=10
+
+# Restart AzuraCast to apply new configuration
+cd "$install_dir"
+ynh_exec_as $app ./docker.sh restart
+
+ynh_script_progression --message="Starting a systemd service..." --weight=1
+
+ynh_systemd_action --service_name=$app --action="start" --log_path="/var/log/$app/$app.log"
+
+ynh_script_progression --message="Reloading nginx web server..." --weight=1
+
+ynh_systemd_action --service_name=nginx --action=reload
+
+ynh_script_progression --message="Change of URL completed for $app" --last

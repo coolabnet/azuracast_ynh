@@ -1,0 +1,51 @@
+#!/bin/bash
+
+source ../settings/scripts/_common.sh
+source /usr/share/yunohost/helpers
+
+# Retrieve app settings
+app=$YNH_APP_ID
+install_dir=$(ynh_app_setting_get --app=$app --key=install_dir)
+data_dir=$(ynh_app_setting_get --app=$app --key=data_dir)
+
+ynh_script_progression --message="Declaring files to be backed up..." --weight=1
+
+# Backup the main app directory
+ynh_backup --src_path="$install_dir"
+
+# Backup the data directory
+ynh_backup --src_path="$data_dir"
+
+# Backup nginx configuration
+ynh_backup --src_path="/etc/nginx/conf.d/$domain.d/$app.conf"
+
+# Backup systemd service
+ynh_backup --src_path="/etc/systemd/system/$app.service"
+
+# Backup logrotate configuration
+ynh_backup --src_path="/etc/logrotate.d/$app"
+
+# Backup fail2ban configuration
+ynh_backup --src_path="/etc/fail2ban/jail.d/$app.conf"
+ynh_backup --src_path="/etc/fail2ban/filter.d/$app.conf"
+
+ynh_script_progression --message="Creating AzuraCast application backup..." --weight=10
+
+# Stop the Docker containers temporarily for backup
+cd "$install_dir"
+if [ -f "docker.sh" ]; then
+    ynh_exec_as $app ./docker.sh stop
+fi
+
+# Create AzuraCast backup using built-in tools
+ynh_exec_as $app ./docker.sh backup
+
+# Restart the containers
+ynh_exec_as $app ./docker.sh start
+
+# Backup any generated backup files
+if [ -d "$install_dir/backups" ]; then
+    ynh_backup --src_path="$install_dir/backups"
+fi
+
+ynh_script_progression --message="Backup script completed for $app" --last

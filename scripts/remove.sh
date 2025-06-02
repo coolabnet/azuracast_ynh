@@ -1,0 +1,61 @@
+#!/bin/bash
+
+source _common.sh
+source /usr/share/yunohost/helpers
+
+# Retrieve app settings
+app=$YNH_APP_ID
+domain=$(ynh_app_setting_get --app=$app --key=domain)
+install_dir=$(ynh_app_setting_get --app=$app --key=install_dir)
+data_dir=$(ynh_app_setting_get --app=$app --key=data_dir)
+
+ynh_script_progression --message="Removing system configurations related to $app..." --weight=1
+
+# Remove the service from the list of services known by YunoHost
+if ynh_exec_warn_less yunohost service status $app >/dev/null
+then
+    yunohost service remove $app
+fi
+
+# Stop and remove systemd service
+ynh_remove_systemd_config
+
+# Stop and remove Docker containers
+if [ -d "$install_dir" ]; then
+    ynh_script_progression --message="Stopping AzuraCast Docker containers..." --weight=5
+
+    cd "$install_dir"
+
+    # Stop AzuraCast services
+    if [ -f "docker.sh" ]; then
+        ynh_exec_as $app ./docker.sh down
+    fi
+
+    # Remove Docker containers and volumes
+    if command -v docker-compose &> /dev/null; then
+        ynh_exec_as $app docker-compose down -v --remove-orphans 2>/dev/null || true
+    fi
+
+    # Remove Docker images (optional - commented out to preserve for other instances)
+    # docker image prune -f
+fi
+
+# Remove nginx configuration
+ynh_remove_nginx_config
+
+# Remove logrotate configuration
+ynh_remove_logrotate_config
+
+# Remove fail2ban configuration
+ynh_remove_fail2ban_config
+
+# Remove the app directory securely
+ynh_secure_remove --file="$install_dir"
+
+# Remove the data directory
+ynh_secure_remove --file="$data_dir"
+
+# Remove the dedicated system user
+ynh_system_user_delete --username=$app
+
+ynh_script_progression --message="Removal of $app completed" --last
