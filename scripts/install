@@ -11,11 +11,19 @@ admin=$YNH_APP_ARG_ADMIN
 password=$YNH_APP_ARG_PASSWORD
 station_ports=$YNH_APP_ARG_STATION_PORTS
 
+# Get automatically assigned values from YunoHost v2 resources
+install_dir=$YNH_APP_INSTALL_DIR
+data_dir=$YNH_APP_DATA_DIR
+port=$YNH_APP_PORT_MAIN
+
 # Store settings
 ynh_app_setting_set --app=$app --key=domain --value=$domain
 ynh_app_setting_set --app=$app --key=path --value=$path
 ynh_app_setting_set --app=$app --key=admin --value=$admin
 ynh_app_setting_set --app=$app --key=station_ports --value=$station_ports
+ynh_app_setting_set --app=$app --key=install_dir --value=$install_dir
+ynh_app_setting_set --app=$app --key=data_dir --value=$data_dir
+ynh_app_setting_set --app=$app --key=port --value=$port
 
 ynh_script_progression --message="Installing dependencies..." --weight=10
 
@@ -27,9 +35,11 @@ install_docker_compose
 
 ynh_script_progression --message="Setting up AzuraCast..." --weight=20
 
-# Create installation directory
+# Ensure installation directory exists and has correct permissions
 mkdir -p "$install_dir"
+mkdir -p "$data_dir"
 chown -R $app:$app "$install_dir"
+chown -R $app:$app "$data_dir"
 cd "$install_dir"
 
 # Download AzuraCast
