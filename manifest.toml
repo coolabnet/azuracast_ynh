@@ -75,7 +75,7 @@ ram.runtime = "1G"
 
     [resources.sources.main]
     url = "https://github.com/AzuraCast/AzuraCast/archive/refs/tags/0.21.0.tar.gz"
-    sha256 = "6a3d8b3816f97dfba45d3adb1a9649b65707d0dc94695477e5c50af2859dbd1a"
+    sha256 = "0c2718b1a825ad9db07751c395f2d5576237268635a1071ae407ec2112033781"
 
     autoupdate.strategy = "latest_github_tag"
 
