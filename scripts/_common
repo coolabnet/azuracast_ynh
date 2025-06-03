@@ -99,7 +99,7 @@ is_azuracast_running() {
     cd "$install_dir"
     if [ -f "docker-compose.yml" ]; then
         local compose_cmd=$(get_docker_compose_cmd)
-        running_containers=$(sudo -u $app newgrp docker -c "$compose_cmd ps -q")
+        running_containers=$(sudo -u $app sg docker -c "$compose_cmd ps -q")
         if [ ! -z "$running_containers" ]; then
             return 0
         fi

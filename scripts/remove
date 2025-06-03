@@ -28,13 +28,13 @@ if [ -d "$install_dir" ]; then
 
     # Stop AzuraCast services
     if [ -f "docker.sh" ]; then
-        sudo -u $app newgrp docker -c './docker.sh down'
+        sudo -u $app sg docker -c './docker.sh down'
     fi
 
     # Remove Docker containers and volumes
     if is_docker_compose_installed; then
         compose_cmd=$(get_docker_compose_cmd)
-        sudo -u $app newgrp docker -c "$compose_cmd down -v --remove-orphans" 2>/dev/null || true
+        sudo -u $app sg docker -c "$compose_cmd down -v --remove-orphans" 2>/dev/null || true
     fi
 
     # Remove Docker images (optional - commented out to preserve for other instances)

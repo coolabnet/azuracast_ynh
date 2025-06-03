@@ -34,14 +34,14 @@ ynh_script_progression --message="Creating AzuraCast application backup..." --we
 # Stop the Docker containers temporarily for backup
 cd "$install_dir"
 if [ -f "docker.sh" ]; then
-    sudo -u $app newgrp docker -c './docker.sh stop'
+    sudo -u $app sg docker -c './docker.sh stop'
 fi
 
 # Create AzuraCast backup using built-in tools
-sudo -u $app newgrp docker -c './docker.sh backup'
+sudo -u $app sg docker -c './docker.sh backup'
 
 # Restart the containers
-sudo -u $app newgrp docker -c './docker.sh start'
+sudo -u $app sg docker -c './docker.sh start'
 
 # Backup any generated backup files
 if [ -d "$install_dir/backups" ]; then
