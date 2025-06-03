@@ -49,15 +49,9 @@ ynh_systemd_action --service_name=fail2ban --action=restart
 
 ynh_script_progression --message="Checking Docker installation..." --weight=5
 
-# Ensure Docker is installed
-if ! command -v docker &> /dev/null; then
-    ynh_exec_warn_less curl -fsSL https://get.docker.com | sh
-fi
-
-if ! command -v docker-compose &> /dev/null; then
-    ynh_exec_warn_less curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-fi
+# Ensure Docker and Docker Compose are installed
+install_docker
+install_docker_compose
 
 ynh_script_progression --message="Restoring AzuraCast Docker containers..." --weight=15
 

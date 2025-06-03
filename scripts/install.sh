@@ -19,16 +19,11 @@ ynh_app_setting_set --app=$app --key=station_ports --value=$station_ports
 
 ynh_script_progression --message="Installing dependencies..." --weight=10
 
-# Install Docker
-if ! command -v docker &> /dev/null; then
-    ynh_exec_warn_less curl -fsSL https://get.docker.com | sh
-fi
+# Install Docker using helper functions
+install_docker
 
-# Install Docker Compose
-if ! command -v docker-compose &> /dev/null; then
-    ynh_exec_warn_less curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-fi
+# Install Docker Compose using helper functions
+install_docker_compose
 
 ynh_script_progression --message="Setting up AzuraCast..." --weight=20
 
@@ -59,7 +54,8 @@ ynh_add_nginx_config
 ynh_add_systemd_config
 
 # Create admin user
-ynh_exec_as $app docker-compose exec -T web azuracast_cli azuracast:account:create \
+compose_cmd=$(get_docker_compose_cmd)
+ynh_exec_as $app $compose_cmd exec -T web azuracast_cli azuracast:account:create \
   --email="$(ynh_user_get_info --username=$admin --key=mail)" \
   --password="$password" --admin
 

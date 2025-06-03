@@ -49,17 +49,11 @@ fi
 
 ynh_script_progression --message="Installing dependencies..." --weight=10
 
-# Install Docker if not already installed
-if ! command -v docker &> /dev/null; then
-    ynh_exec_warn_less curl -fsSL https://get.docker.com | sh
-    usermod -aG docker $app
-fi
+# Install Docker using helper functions
+install_docker
 
-# Install Docker Compose if not already installed
-if ! command -v docker-compose &> /dev/null; then
-    ynh_exec_warn_less curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-fi
+# Install Docker Compose using helper functions
+install_docker_compose
 
 #=================================================
 # CREATE DEDICATED USER
@@ -173,7 +167,8 @@ cd "$install_dir"
 ynh_exec_as $app ./docker.sh install
 
 # Create initial admin user
-ynh_exec_as $app docker-compose exec -T web azuracast_cli azuracast:account:create --email="$(ynh_user_get_info --username=$admin --key=mail)" --password="$password" --admin
+compose_cmd=$(get_docker_compose_cmd)
+ynh_exec_as $app $compose_cmd exec -T web azuracast_cli azuracast:account:create --email="$(ynh_user_get_info --username=$admin --key=mail)" --password="$password" --admin
 
 #=================================================
 # SETUP LOGROTATE

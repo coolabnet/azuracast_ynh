@@ -32,8 +32,9 @@ if [ -d "$install_dir" ]; then
     fi
 
     # Remove Docker containers and volumes
-    if command -v docker-compose &> /dev/null; then
-        ynh_exec_as $app docker-compose down -v --remove-orphans 2>/dev/null || true
+    if is_docker_compose_installed; then
+        compose_cmd=$(get_docker_compose_cmd)
+        ynh_exec_as $app $compose_cmd down -v --remove-orphans 2>/dev/null || true
     fi
 
     # Remove Docker images (optional - commented out to preserve for other instances)

@@ -119,12 +119,12 @@ Upload media files via SFTP:
 
 **Web interface not loading:**
 - Check nginx configuration: `nginx -t`
-- Verify AzuraCast containers are running: `cd /var/www/azuracast && sudo -u azuracast docker-compose ps`
+- Verify AzuraCast containers are running: `cd /var/www/azuracast && sudo -u azuracast docker compose ps` (or `docker-compose ps` if using standalone version)
 
 ### Log Files
 
 - **YunoHost logs**: `/var/log/azuracast/azuracast.log`
-- **AzuraCast logs**: `cd /var/www/azuracast && sudo -u azuracast docker-compose logs`
+- **AzuraCast logs**: `cd /var/www/azuracast && sudo -u azuracast docker compose logs` (or `docker-compose logs` if using standalone version)
 - **Nginx logs**: `/var/log/nginx/[domain]-error.log`
 
 ## Developer Info

@@ -7,7 +7,7 @@ name = "AzuraCast"
 description.en = "Self-hosted web radio management suite with Docker"
 description.fr = "Suite de gestion de webradio auto-hébergée avec Docker"
 
-version = "0.20.2~ynh1"
+version = "0.21.0~ynh1"
 
 maintainers = ["YunoHost Community"]
 
@@ -92,4 +92,4 @@ ram.runtime = "1G"
     main.default = 80
 
     [resources.apt]
-    packages = "docker-ce, docker-compose-plugin, curl, git"
+    packages = "curl, git"

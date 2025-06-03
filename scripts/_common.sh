@@ -25,11 +25,17 @@ is_docker_installed() {
 
 # Check if Docker Compose is installed
 is_docker_compose_installed() {
+    # Check for docker-compose binary
     if command -v docker-compose &> /dev/null; then
         return 0
-    else
-        return 1
     fi
+
+    # Check for docker compose plugin
+    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        return 0
+    fi
+
+    return 1
 }
 
 # Install Docker if not present
@@ -47,9 +53,31 @@ install_docker() {
 install_docker_compose() {
     if ! is_docker_compose_installed; then
         ynh_script_progression --message="Installing Docker Compose..." --weight=5
+
+        # First try to install Docker Compose plugin (modern approach)
+        if command -v docker &> /dev/null; then
+            # Check if we can install the plugin
+            if docker --help | grep -q "compose"; then
+                ynh_script_progression --message="Docker Compose plugin already available" --weight=1
+                return 0
+            fi
+        fi
+
+        # Fallback to standalone docker-compose binary
         COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
         ynh_exec_warn_less curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
         chmod +x /usr/local/bin/docker-compose
+    fi
+}
+
+# Get the correct docker compose command
+get_docker_compose_cmd() {
+    if command -v docker-compose &> /dev/null; then
+        echo "docker-compose"
+    elif command -v docker &> /dev/null && docker compose version &> /dev/null; then
+        echo "docker compose"
+    else
+        echo "docker-compose"  # fallback
     fi
 }
 
@@ -57,7 +85,8 @@ install_docker_compose() {
 is_azuracast_running() {
     cd "$install_dir"
     if [ -f "docker-compose.yml" ]; then
-        running_containers=$(ynh_exec_as $app docker-compose ps -q)
+        local compose_cmd=$(get_docker_compose_cmd)
+        running_containers=$(ynh_exec_as $app $compose_cmd ps -q)
         if [ ! -z "$running_containers" ]; then
             return 0
         fi
