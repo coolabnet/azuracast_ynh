@@ -12,10 +12,12 @@ password=$YNH_APP_ARG_PASSWORD
 station_ports=$YNH_APP_ARG_STATION_PORTS
 
 # Initialize directories and port
-# YunoHost v2 resources should be automatically provisioned
+# YunoHost v2 resources are automatically provisioned
 install_dir="/var/www/$app"
 data_dir="/home/yunohost.app/$app"
-port=$(ynh_find_port --port=8080)
+# Get the automatically assigned port from YunoHost v2 resources
+# If not available, use default port
+port=${port:-8080}
 
 # Store settings
 ynh_app_setting_set --app=$app --key=domain --value=$domain
@@ -51,7 +53,8 @@ chown -R $app:$app "/var/log/$app"
 cd "$install_dir"
 
 # Download AzuraCast
-ynh_exec_as $app curl -fsSL https://raw.githubusercontent.com/AzuraCast/AzuraCast/main/docker.sh > docker.sh
+curl -fsSL https://raw.githubusercontent.com/AzuraCast/AzuraCast/main/docker.sh -o docker.sh
+chown $app:$app docker.sh
 chmod +x docker.sh
 
 # Configure environment
@@ -61,6 +64,7 @@ AZURACAST_HTTP_PORT=$port
 AZURACAST_HTTPS_PORT=443
 AZURACAST_SFTP_PORT=2022
 EOF
+chown $app:$app .env
 
 # Install AzuraCast
 ynh_exec_as $app ./docker.sh install
@@ -70,6 +74,10 @@ ynh_add_nginx_config
 
 # Setup systemd service
 ynh_add_systemd_config
+
+# Wait for containers to be ready
+ynh_script_progression --message="Waiting for AzuraCast to be ready..." --weight=5
+sleep 30
 
 # Create admin user
 compose_cmd=$(get_docker_compose_cmd)
