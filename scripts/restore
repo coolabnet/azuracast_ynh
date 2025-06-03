@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ../settings/scripts/_common.sh
+source ../settings/scripts/_common
 source /usr/share/yunohost/helpers
 
 # Retrieve app settings
