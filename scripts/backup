@@ -34,14 +34,14 @@ ynh_script_progression --message="Creating AzuraCast application backup..." --we
 # Stop the Docker containers temporarily for backup
 cd "$install_dir"
 if [ -f "docker.sh" ]; then
-    ynh_exec_as $app ./docker.sh stop
+    sudo -u $app ./docker.sh stop
 fi
 
 # Create AzuraCast backup using built-in tools
-ynh_exec_as $app ./docker.sh backup
+sudo -u $app ./docker.sh backup
 
 # Restart the containers
-ynh_exec_as $app ./docker.sh start
+sudo -u $app ./docker.sh start
 
 # Backup any generated backup files
 if [ -d "$install_dir/backups" ]; then

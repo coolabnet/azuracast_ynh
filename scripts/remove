@@ -28,13 +28,13 @@ if [ -d "$install_dir" ]; then
 
     # Stop AzuraCast services
     if [ -f "docker.sh" ]; then
-        ynh_exec_as $app ./docker.sh down
+        sudo -u $app ./docker.sh down
     fi
 
     # Remove Docker containers and volumes
     if is_docker_compose_installed; then
         compose_cmd=$(get_docker_compose_cmd)
-        ynh_exec_as $app $compose_cmd down -v --remove-orphans 2>/dev/null || true
+        sudo -u $app $compose_cmd down -v --remove-orphans 2>/dev/null || true
     fi
 
     # Remove Docker images (optional - commented out to preserve for other instances)

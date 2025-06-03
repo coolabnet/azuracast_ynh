@@ -67,7 +67,7 @@ EOF
 chown $app:$app .env
 
 # Install AzuraCast
-ynh_exec_as $app ./docker.sh install
+sudo -u $app ./docker.sh install
 
 # Configure nginx
 ynh_add_nginx_config
@@ -81,7 +81,7 @@ sleep 30
 
 # Create admin user
 compose_cmd=$(get_docker_compose_cmd)
-ynh_exec_as $app $compose_cmd exec -T web azuracast_cli azuracast:account:create \
+sudo -u $app $compose_cmd exec -T web azuracast_cli azuracast:account:create \
   --email="$(ynh_user_get_info --username=$admin --key=mail)" \
   --password="$password" --admin
 

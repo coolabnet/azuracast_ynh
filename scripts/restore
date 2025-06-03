@@ -58,15 +58,15 @@ ynh_script_progression --message="Restoring AzuraCast Docker containers..." --we
 cd "$install_dir"
 
 # Pull latest images and start containers
-ynh_exec_as $app ./docker.sh update
-ynh_exec_as $app ./docker.sh start
+sudo -u $app ./docker.sh update
+sudo -u $app ./docker.sh start
 
 # Restore AzuraCast backup if available
 if [ -d "$install_dir/backups" ] && [ "$(ls -A $install_dir/backups)" ]; then
     latest_backup=$(ls -t $install_dir/backups/*.tar.gz 2>/dev/null | head -n1)
     if [ ! -z "$latest_backup" ]; then
         ynh_script_progression --message="Restoring AzuraCast data from backup..." --weight=10
-        ynh_exec_as $app ./docker.sh restore "$latest_backup"
+        sudo -u $app ./docker.sh restore "$latest_backup"
     fi
 fi
 

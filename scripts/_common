@@ -99,7 +99,7 @@ is_azuracast_running() {
     cd "$install_dir"
     if [ -f "docker-compose.yml" ]; then
         local compose_cmd=$(get_docker_compose_cmd)
-        running_containers=$(ynh_exec_as $app $compose_cmd ps -q)
+        running_containers=$(sudo -u $app $compose_cmd ps -q)
         if [ ! -z "$running_containers" ]; then
             return 0
         fi
@@ -115,7 +115,7 @@ wait_for_azuracast() {
     ynh_script_progression --message="Waiting for AzuraCast to be ready..." --weight=10
 
     while [ $attempt -le $max_attempts ]; do
-        if ynh_exec_as $app curl -f http://localhost:$port >/dev/null 2>&1; then
+        if sudo -u $app curl -f http://localhost:$port >/dev/null 2>&1; then
             ynh_script_progression --message="AzuraCast is ready!" --weight=1
             return 0
         fi
