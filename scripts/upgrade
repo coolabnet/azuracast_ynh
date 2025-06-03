@@ -43,11 +43,11 @@ ynh_script_progression --message="Upgrading AzuraCast..." --weight=20
 cd "$install_dir"
 
 # Create backup before upgrade
-sudo -u $app ./docker.sh backup
+sudo -u $app newgrp docker -c './docker.sh backup'
 
 # Update AzuraCast
-sudo -u $app ./docker.sh update-self
-sudo -u $app ./docker.sh update
+sudo -u $app newgrp docker -c './docker.sh update-self'
+sudo -u $app newgrp docker -c './docker.sh update'
 
 ynh_script_progression --message="Updating nginx web server configuration..." --weight=1
 

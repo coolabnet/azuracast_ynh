@@ -67,7 +67,8 @@ EOF
 chown $app:$app .env
 
 # Install AzuraCast
-sudo -u $app ./docker.sh install
+# Use newgrp to ensure docker group membership is active
+sudo -u $app newgrp docker -c './docker.sh install'
 
 # Configure nginx
 ynh_add_nginx_config
@@ -81,9 +82,9 @@ sleep 30
 
 # Create admin user
 compose_cmd=$(get_docker_compose_cmd)
-sudo -u $app $compose_cmd exec -T web azuracast_cli azuracast:account:create \
-  --email="$(ynh_user_get_info --username=$admin --key=mail)" \
-  --password="$password" --admin
+sudo -u $app newgrp docker -c "$compose_cmd exec -T web azuracast_cli azuracast:account:create \
+  --email=\"$(ynh_user_get_info --username=$admin --key=mail)\" \
+  --password=\"$password\" --admin"
 
 yunohost service add $app --description="AzuraCast web radio"
 ynh_systemd_action --service_name=$app --action="start"
